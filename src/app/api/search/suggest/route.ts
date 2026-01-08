@@ -96,15 +96,20 @@ export async function GET(req: Request) {
         .sort((a, b) => b.count - a.count)
         .slice(0, 12);
 
-  const catLabel = new Map(CATEGORIES.map((c) => [c.key, c.label] as const));
+  // NOTE: Prisma groupBy returns `finalCategory` as `string | null` at the type level.
+  // Keep this map as <string, string> so we can safely look up labels.
+  const catLabel = new Map<string, string>(CATEGORIES.map((c) => [c.key, c.label]));
   const categories = !isAdmin
     ? []
     : grouped
-        .map((g) => ({
-          key: g.finalCategory,
-          label: catLabel.get(g.finalCategory) ?? g.finalCategory,
-          count: g._count._all,
-        }))
+        .map((g) => {
+          const key = (g.finalCategory ?? "uncategorized") as string;
+          return {
+            key,
+            label: catLabel.get(key) ?? key,
+            count: g._count._all,
+          };
+        })
         .sort((a, b) => b.count - a.count);
 
   // Guests should not receive tag/category facets or per-photo tags in suggestions.
