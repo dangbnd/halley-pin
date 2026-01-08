@@ -23,10 +23,11 @@ async function isAllowed(_req: Request) {
 export async function POST(req: Request) {
   if (!(await isAllowed(req))) return unauthorized();
 
-  const body = await req.json().catch(() => null);
-  const idsRaw = Array.isArray(body?.ids) ? body.ids : [];
-  const ids = Array.from(new Set(idsRaw.map(String))).filter(Boolean);
-  const dbOnly = body?.dbOnly === true;
+  const body = (await req.json().catch(() => ({}))) as { ids?: unknown; dbOnly?: unknown };
+  const ids: string[] = Array.isArray(body.ids)
+    ? Array.from(new Set(body.ids.map((v) => String(v)).filter((s) => s.length > 0)))
+    : [];
+  const dbOnly = body.dbOnly === true;
 
   if (ids.length === 0) {
     return NextResponse.json({ error: "ids required" }, { status: 400 });
