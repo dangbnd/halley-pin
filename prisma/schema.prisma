@@ -1,0 +1,84 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum JobStatus {
+  queued
+  processing
+  done
+  failed
+}
+
+model Photo {
+  id          String @id @default(cuid())
+
+  // Cloudflare R2 object keys
+  originalKey String?
+  displayKey  String @unique
+  thumbKey    String @unique
+
+  width        Int
+  height       Int
+  title        String
+
+  aiCategory   String?
+  aiConfidence Float   @default(0)
+
+  userCategory  String?
+  finalCategory String  @default("uncategorized")
+
+  adminNote       String?
+  adminNotePublic Boolean @default(false)
+  adminSourceUrl  String?
+
+  tags     Tag[]
+  job      ClassificationJob?
+  comments Comment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([finalCategory])
+  @@index([createdAt])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  photos    Photo[]
+  createdAt DateTime @default(now())
+
+  @@index([name])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  photoId    String
+  authorName String   @default("Ẩn danh")
+  content    String
+  createdAt  DateTime @default(now())
+
+  photo      Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@index([photoId, createdAt])
+}
+
+model ClassificationJob {
+  id         String    @id @default(cuid())
+  photoId    String    @unique
+  status     JobStatus @default(queued)
+  attempts   Int       @default(0)
+  lastError  String?
+  lockedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  photo      Photo     @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@index([status, lockedAt])
+}

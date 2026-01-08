@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html, body { height: 100%; }
+body { background: #f4f4f5; color: #09090b; }
+
+/* Keep existing wrapper class (used across pages) */
+.grain { background: transparent; }
+
+
+/* Hide horizontal scrollbar for compact filter rows */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
