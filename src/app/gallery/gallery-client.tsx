@@ -9,6 +9,13 @@ import type { Photo } from "@/lib/photos";
 import { Trash2, CheckSquare, Square, MoreVertical } from "lucide-react";
 
 type ApiResp = { items: Photo[]; nextCursor: string | null };
+// ✅ Cache list để back ra không bị reset -> đỡ nháy
+let GALLERY_CACHE: {
+  key: string;
+  items: Photo[];
+  cursor: string | null;
+  hasMore: boolean;
+} | null = null;
 
 // Responsive columns, nhưng vẫn giữ “4 cột desktop” như Pinterest
 function useColumns() {
@@ -68,10 +75,23 @@ function spanForCols(photoId: string, index: number, cols: number) {
 export function GalleryClient({
   isAdmin = false,
   basePath = "",
+  initialItems,
+  initialCursor,
+  initialHasMore,
+  initialKey = "",
+  initialLimit = 30,
 }: {
   isAdmin?: boolean;
   /** When rendered under /admin, pass basePath="/admin" so detail links stay in admin area. */
   basePath?: string;
+  /** Server-rendered first page for best first-paint. */
+  initialItems?: Photo[];
+  initialCursor?: string | null;
+  initialHasMore?: boolean;
+  /** Filter key (q|tag|category) that `initialItems` corresponds to. */
+  initialKey?: string;
+  /** Initial page size. Smaller = faster first paint. */
+  initialLimit?: number;
 }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -82,12 +102,27 @@ export function GalleryClient({
 
   const tag = tagParam || null;
   const category = catParam || null;
+  const cacheKey = `${isAdmin ? "admin" : "public"}||${q}||${tag ?? ""}||${category ?? ""}`;
 
-  const [items, setItems] = useState<Photo[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const initialProvided = typeof initialItems !== "undefined";
+
+  const [items, setItems] = useState<Photo[]>(() =>
+    GALLERY_CACHE?.key === cacheKey ? GALLERY_CACHE.items : (initialItems ?? [])
+  );
+
+  const [cursor, setCursor] = useState<string | null>(() =>
+    GALLERY_CACHE?.key === cacheKey ? GALLERY_CACHE.cursor : (initialCursor ?? null)
+  );
+
+  const [hasMore, setHasMore] = useState<boolean>(() =>
+    GALLERY_CACHE?.key === cacheKey
+      ? GALLERY_CACHE.hasMore
+      : (typeof initialHasMore === "boolean" ? initialHasMore : Boolean(initialCursor))
+  );
+
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
+  const didInitRef = useRef(false);
 
 
   // Selection (bulk delete)
@@ -104,6 +139,8 @@ export function GalleryClient({
   const clearSelected = () => setSelected(new Set());
   const selectAllLoaded = () => setSelected(new Set(items.map((p) => p.id)));
 
+  const PAGE_LIMIT = initialLimit;
+
   async function loadMore(reset = false) {
     if (loading) return;
     if (inFlightRef.current) return;
@@ -114,13 +151,13 @@ export function GalleryClient({
 
     try {
       const params = new URLSearchParams();
-      params.set("limit", "60");
+      params.set("limit", String(PAGE_LIMIT));
       if (!reset && cursor) params.set("cursor", cursor);
       if (q) params.set("q", q);
       if (tag) params.set("tag", tag);
       if (category) params.set("category", category);
 
-      const res = await fetch(`/api/photos?${params.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/photos?${params.toString()}`, isAdmin ? { cache: "no-store" } : undefined);
       const data = (await res.json()) as ApiResp;
 
       setItems((prev) => {
@@ -141,23 +178,31 @@ export function GalleryClient({
     }
   }
 
-  // initial load
+  const filterKey = `${q}||${tag ?? ""}||${category ?? ""}`;
   useEffect(() => {
-    loadMore(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    GALLERY_CACHE = { key: cacheKey, items, cursor, hasMore };
+  }, [cacheKey, items, cursor, hasMore]);
 
   // Reload when filters/search change (light debounce)
   useEffect(() => {
+    const firstRun = !didInitRef.current;
+    // On first mount, if we have server-rendered data matching current filters,
+    // skip the initial client fetch for best first paint.
+    if (firstRun) {
+      didInitRef.current = true;
+      const initialMatches = initialProvided && initialKey === filterKey;
+      if (initialMatches) return;
+    }
+
     const t = window.setTimeout(() => {
       clearSelected();
       setCursor(null);
       setHasMore(true);
       loadMore(true);
-    }, 180);
+    }, firstRun ? 0 : 180);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, tag, category]);
+  }, [filterKey]);
 
   // Infinite scroll trigger (masonry-friendly)
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -170,7 +215,8 @@ export function GalleryClient({
       (entries) => {
         if (entries[0]?.isIntersecting) loadMore(false);
       },
-      { rootMargin: "500px 0px", threshold: 0.01 }
+      // Smaller rootMargin to avoid immediately fetching page 2 on first paint.
+      { rootMargin: "200px 0px", threshold: 0.01 }
     );
 
     io.observe(el);

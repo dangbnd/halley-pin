@@ -17,6 +17,10 @@ const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
   { protocol: "https", hostname: "**.r2.dev" },
   // Sometimes used for direct access (if enabled)
   { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },
+  // Your production bucket custom domain(s)
+  // (hard-coded so the build doesn't depend on env being set correctly)
+  { protocol: "https", hostname: "images.halley.io.vn" },
+  { protocol: "https", hostname: "**.halley.io.vn" },
 ];
 
 // Custom domain connected to the bucket (recommended)

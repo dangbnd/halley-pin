@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdminServer } from "@/lib/admin-auth";
 import { computeFinalCategory } from "@/lib/category";
 import { deleteR2Keys } from "@/lib/r2";
+import { keyToLabelFallback, parseTagsInput } from "@/lib/tag-utils";
 
 export const runtime = "nodejs";
 
@@ -29,16 +30,59 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const adminNote = typeof body?.adminNote === "string" ? body.adminNote.trim() : null;
   const adminNotePublic = Boolean(body?.adminNotePublic);
 
+  // Product fields (admin-only)
+  const title = typeof body?.title === "string" ? body.title.trim() : null;
+  const active = typeof body?.active === "boolean" ? body.active : null;
+
+  const priceBySize = typeof body?.priceBySize === "string" ? body.priceBySize : null;
+  const description = typeof body?.description === "string" ? body.description : null;
+
+  const priceVisibility = body?.priceVisibility === "public" || body?.priceVisibility === "private" ? body.priceVisibility : null;
+  const descriptionVisibility =
+    body?.descriptionVisibility === "public" || body?.descriptionVisibility === "private" ? body.descriptionVisibility : null;
+
+  // Tags can be provided as comma-separated string or string[] (labels).
+  const tags = body && ("tags" in body) ? parseTagsInput((body as any).tags) : null;
+
   const updated = await prisma.$transaction(async (tx) => {
     const current = await tx.photo.findUnique({ where: { id } });
     if (!current) return null;
 
     const finalCategory = computeFinalCategory({ aiCategory: current.aiCategory, userCategory });
 
-    return tx.photo.update({
+    const nextPhoto = await tx.photo.update({
       where: { id },
-      data: { userCategory, finalCategory, adminNote, adminNotePublic },
+      data: {
+        userCategory,
+        finalCategory,
+        adminNote,
+        adminNotePublic,
+        ...(title !== null ? { title } : {}),
+        ...(active !== null ? { active } : {}),
+        ...(priceBySize !== null ? { priceBySize } : {}),
+        ...(priceVisibility !== null ? { priceVisibility } : {}),
+        ...(description !== null ? { description } : {}),
+        ...(descriptionVisibility !== null ? { descriptionVisibility } : {}),
+      },
     });
+
+    // Replace tags if provided.
+    if (tags) {
+      for (const t of tags) {
+        await tx.tag.upsert({
+          where: { key: t.key },
+          create: { key: t.key, label: t.label || keyToLabelFallback(t.key) },
+          // If label changed, keep the latest non-empty label.
+          update: t.label ? { label: t.label } : {},
+        });
+      }
+      await tx.photo.update({
+        where: { id },
+        data: { tags: { set: tags.map((t) => ({ key: t.key })) } },
+      });
+    }
+
+    return nextPhoto;
   });
 
   if (!updated) {
@@ -47,10 +91,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const r = NextResponse.json({
     id: updated.id,
+    title: updated.title,
+    active: (updated as any).active,
     userCategory: updated.userCategory,
     finalCategory: updated.finalCategory,
     adminNote: updated.adminNote ?? null,
     adminNotePublic: updated.adminNotePublic,
+    priceBySize: (updated as any).priceBySize ?? null,
+    priceVisibility: (updated as any).priceVisibility ?? null,
+    description: (updated as any).description ?? null,
+    descriptionVisibility: (updated as any).descriptionVisibility ?? null,
+    // return tag labels so client can keep local state in sync
+    tags: tags ? tags.map((t) => t.label || keyToLabelFallback(t.key)) : undefined,
   });
   r.headers.set("Cache-Control", "no-store, max-age=0");
   r.headers.set("Vary", "Cookie");

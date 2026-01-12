@@ -13,3 +13,30 @@ body { background: #f4f4f5; color: #09090b; }
 /* Hide horizontal scrollbar for compact filter rows */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Smooth route transitions when we opt-in via document.startViewTransition */
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 220ms;
+    animation-timing-function: ease;
+  }
+
+  ::view-transition-old(root) {
+    animation-name: hl-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: hl-fade-in;
+  }
+
+  @keyframes hl-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes hl-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+}

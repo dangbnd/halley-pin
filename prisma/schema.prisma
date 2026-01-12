@@ -14,6 +14,13 @@ enum JobStatus {
   failed
 }
 
+/// Simple visibility flag for product fields.
+/// (Used by admin UI; guests never receive admin-only fields in APIs.)
+enum Visibility {
+  public
+  private
+}
+
 model Photo {
   id          String @id @default(cuid())
 
@@ -36,6 +43,13 @@ model Photo {
   adminNotePublic Boolean @default(false)
   adminSourceUrl  String?
 
+  /// Product/Business fields (admin-managed)
+  active                Boolean    @default(true)
+  priceBySize            String?
+  priceVisibility        Visibility @default(public)
+  description            String?
+  descriptionVisibility  Visibility @default(public)
+
   tags     Tag[]
   job      ClassificationJob?
   comments Comment[]
@@ -49,11 +63,24 @@ model Photo {
 
 model Tag {
   id        String   @id @default(cuid())
-  name      String   @unique
+  /// Stable key used in DB + URLs (no accents, lowercase, hyphen-separated).
+  /// Backwards-compatible: stored in the existing "name" column.
+  key       String   @unique @map("name")
+  /// Human-readable label (can contain Vietnamese + spaces)
+  label     String
+
+  /// admin ordering + visibility
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+
   photos    Photo[]
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([name])
+  @@index([key])
+  @@index([label])
+  @@index([order])
+  @@index([isActive])
 }
 
 model Comment {
@@ -81,4 +108,22 @@ model ClassificationJob {
   photo      Photo     @relation(fields: [photoId], references: [id], onDelete: Cascade)
 
   @@index([status, lockedAt])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+
+  /// slug/key used in URLs + stored in Photo.finalCategory/userCategory
+  key       String   @unique
+  label     String
+
+  /// admin ordering + visibility
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@index([isActive])
 }

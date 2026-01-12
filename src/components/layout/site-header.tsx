@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Camera, Plus, Images, LogOut, Shield, MoreVertical, Check } from "lucide-react";
+import { Camera, Plus, Images, LogOut, Shield, MoreVertical, Check, Folder, Tag, LayoutGrid } from "lucide-react";
 import Image from "next/image";
 
 import { ActionMenu, type ActionMenuItem } from "@/components/ui/action-menu";
-import { CATEGORIES } from "@/lib/photos";
+import type { CategoryItem } from "@/lib/categories";
+import { useCategories, useEnsureCategoriesLoaded } from "@/components/providers/categories-provider";
 
 function isActive(pathname: string, href: string) {
   // Treat pin detail pages as part of Gallery for active state (both public and /admin).
@@ -19,7 +20,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function SiteHeader() {
+export function SiteHeader({ initialIsAdmin = false }: { initialIsAdmin?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -38,11 +39,13 @@ export function SiteHeader() {
   const tRef = useRef<number | null>(null);
 
   const [suggestLoading, setSuggestLoading] = useState(false);
-  const [suggestPhotos, setSuggestPhotos] = useState<
+  const categories = useCategories();
+  const ensureCategoriesLoaded = useEnsureCategoriesLoaded();
+const [suggestPhotos, setSuggestPhotos] = useState<
     { id: string; title: string; thumbSrc: string; blurDataURL: string; finalCategory: string; tags: string[] }[]
   >([]);
   const [suggestCats, setSuggestCats] = useState<{ key: string; label: string; count: number }[]>([]);
-  const [suggestTags, setSuggestTags] = useState<{ name: string; count: number }[]>([]);
+  const [suggestTags, setSuggestTags] = useState<{ key: string; label: string; count: number }[]>([]);
 
   const INITIAL_SUGGEST_LIMIT = 6;
   const SUGGEST_STEP = 12;
@@ -50,7 +53,7 @@ export function SiteHeader() {
   const [suggestLimit, setSuggestLimit] = useState(INITIAL_SUGGEST_LIMIT);
   const [suggestHasMorePhotos, setSuggestHasMorePhotos] = useState(false);
 
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(Boolean(initialIsAdmin));
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement | null>(null);
@@ -61,16 +64,11 @@ export function SiteHeader() {
     if (!isGalleryLike) setFiltersOpen(false);
   }, [isGalleryLike]);
 
+  // Load categories lazily for best first-paint on public pages.
   useEffect(() => {
-    let mounted = true;
-    fetch("/api/admin/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => mounted && setIsAdmin(Boolean(d?.isAdmin)))
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!filtersOpen) return;
+    void ensureCategoriesLoaded();
+  }, [filtersOpen, ensureCategoriesLoaded]);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -188,7 +186,10 @@ export function SiteHeader() {
   const nav = useMemo(
     () => [
       { href: `${basePath}/gallery`, label: "Gallery", icon: Images, adminOnly: false },
+      { href: `${basePath}/products`, label: "Products", icon: LayoutGrid, adminOnly: true },
       { href: `${basePath}/upload`, label: "Upload", icon: Plus, adminOnly: true },
+      { href: `${basePath}/categories`, label: "Categories", icon: Folder, adminOnly: true },
+      { href: `${basePath}/tags`, label: "Tags", icon: Tag, adminOnly: true },
     ],
     [basePath]
   );
@@ -266,7 +267,7 @@ export function SiteHeader() {
                     <>
                       <div className="mt-2 grid gap-1">
                         {suggestPhotos.map((p) => {
-                          const catLbl = CATEGORIES.find((c) => c.key === p.finalCategory)?.label ?? p.finalCategory;
+                          const catLbl = categories.find((c) => c.key === p.finalCategory)?.label ?? p.finalCategory;
                           return (
                             <Link
                               key={p.id}
@@ -332,18 +333,18 @@ export function SiteHeader() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {suggestTags.map((t) => {
-                      const act = tagFromUrl === t.name;
+                      const act = tagFromUrl === t.key;
                       return (
                         <button
-                          key={t.name}
+                          key={t.key}
                           type="button"
-                          onClick={() => setTag(act ? null : t.name)}
+                          onClick={() => setTag(act ? null : t.key)}
                           className={
                             "whitespace-nowrap rounded-full px-3 py-1.5 text-xs ring-1 ring-black/5 transition " +
                             (act ? "bg-zinc-900 text-white" : "bg-white text-zinc-800 hover:bg-zinc-50")
                           }
                         >
-                          #{t.name}
+                          #{t.label}
                           <span
                             className={
                               "ml-2 rounded-full px-2 py-0.5 text-[10px] " + (act ? "bg-white/15" : "bg-zinc-100")
@@ -375,12 +376,12 @@ export function SiteHeader() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {(() => {
                   const qq = (q ?? "").trim();
-                  const base = qq ? suggestCats : CATEGORIES.map((c) => ({ key: c.key, label: c.label, count: 0 }));
+                  const base = qq ? suggestCats : categories.map((c) => ({ key: c.key, label: c.label, count: 0 }));
 
                   // Keep active category visible even if 0 matches.
                   const actKey = categoryFromUrl || "";
                   if (qq && actKey && !base.some((c) => c.key === actKey)) {
-                    const lbl = CATEGORIES.find((c) => c.key === actKey)?.label ?? actKey;
+                    const lbl = categories.find((c) => c.key === actKey)?.label ?? actKey;
                     base.unshift({ key: actKey, label: lbl, count: 0 });
                   }
 

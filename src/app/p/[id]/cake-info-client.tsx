@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { CATEGORIES } from "@/lib/photos";
+import type { CategoryItem } from "@/lib/categories";
+import { useCategories } from "@/components/providers/categories-provider";
+import { tagsToText } from "@/lib/tag-utils";
 
 import { Check, ChevronDown, Search } from "lucide-react";
 
@@ -13,6 +15,8 @@ type Info = {
   finalCategory: string;
   adminNote: string;
   adminNotePublic: boolean;
+  /** Comma-separated tags input in UI (stored as normalized tag names in DB). */
+  tagsText: string;
 };
 
 export function CakeInfoClient({
@@ -27,8 +31,8 @@ export function CakeInfoClient({
   const router = useRouter();
   const [info, setInfo] = useState<Info>(initial);
   const [saving, setSaving] = useState(false);
-
-  async function save() {
+  const categories = useCategories();
+async function save() {
     setSaving(true);
     try {
       const res = await fetch(`/api/photos/${photoId}`, {
@@ -38,6 +42,8 @@ export function CakeInfoClient({
           userCategory: info.userCategory,
           adminNote: info.adminNote,
           adminNotePublic: info.adminNotePublic,
+          // accept free-form tags, comma-separated.
+          tags: info.tagsText,
         }),
       });
 
@@ -55,6 +61,7 @@ export function CakeInfoClient({
         finalCategory: typeof data?.finalCategory === "string" ? data.finalCategory : p.finalCategory,
         adminNote: typeof data?.adminNote === "string" ? data.adminNote : p.adminNote,
         adminNotePublic: Boolean(data?.adminNotePublic),
+        tagsText: Array.isArray(data?.tags) ? tagsToText(data.tags) : p.tagsText,
       }));
       router.refresh();
     } finally {
@@ -78,6 +85,7 @@ export function CakeInfoClient({
           <CategoryPicker
             value={info.userCategory}
             onChange={(v) => setInfo((p) => ({ ...p, userCategory: v }))}
+            categories={categories}
           />
         </div>
 
@@ -104,6 +112,18 @@ export function CakeInfoClient({
           placeholder="VD: Cốt vanilla, kem bơ, trang trí Noel, gợi ý biến thể…"
         />
 
+        {/* Tags */}
+        <div>
+          <div className="mb-1 text-xs font-medium text-zinc-600">Tags</div>
+          <input
+            value={info.tagsText}
+            onChange={(e) => setInfo((p) => ({ ...p, tagsText: e.target.value }))}
+            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/15"
+            placeholder="VD: 100k, basic, lay ngay, sale"
+          />
+          <div className="mt-1 text-xs text-zinc-500">Ngăn cách bằng dấu phẩy. Bạn có thể tự gõ tag bất kỳ — hệ thống sẽ tự tạo nếu chưa có.</div>
+        </div>
+
         <div className="flex justify-end">
           <Button variant="primary" className="rounded-full px-5" onClick={save} disabled={saving}>
             {saving ? "Đang lưu…" : "Lưu thay đổi"}
@@ -117,9 +137,11 @@ export function CakeInfoClient({
 function CategoryPicker({
   value,
   onChange,
+  categories,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
+  categories: CategoryItem[];
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -127,14 +149,14 @@ function CategoryPicker({
 
   const currentLabel = useMemo(() => {
     if (!value) return "(Tự động)";
-    return CATEGORIES.find((c) => c.key === value)?.label ?? value;
-  }, [value]);
+    return categories.find((c) => c.key === value)?.label ?? value;
+  }, [value, categories]);
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    if (!qq) return CATEGORIES;
-    return CATEGORIES.filter((c) => c.label.toLowerCase().includes(qq));
-  }, [q]);
+    if (!qq) return categories;
+    return categories.filter((c) => c.label.toLowerCase().includes(qq) || c.key.toLowerCase().includes(qq));
+  }, [q, categories]);
 
   // close on outside click / ESC
   useEffect(() => {

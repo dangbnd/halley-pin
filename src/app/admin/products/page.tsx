@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
+
 import { isAdminServer } from "@/lib/admin-auth";
-import UploadClient from "@/app/upload/upload-client";
+import ProductsClient from "@/app/admin/products/products-client";
 
 export const runtime = "nodejs";
 
-export default async function AdminUploadPage() {
+export default async function AdminProductsPage() {
   if (!(await isAdminServer())) redirect("/admin");
-  return <UploadClient isAdmin />;
+  return <ProductsClient />;
 }

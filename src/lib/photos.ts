@@ -8,7 +8,8 @@ export type Photo = {
   height: number;
   title: string;
   tags: string[];
-  blurDataURL: string;
+  /** Optional blur placeholder. Omit on large lists (e.g. related) to keep RSC payload tiny. */
+  blurDataURL?: string;
 
   aiCategory: string | null;
   aiConfidence: number;
@@ -38,13 +39,3 @@ export const FEATURED_TAGS = [
   "grid",
   "calm",
 ];
-
-export const CATEGORIES = [
-  { key: "uncategorized", label: "Chưa phân loại" },
-  { key: "banh-ve", label: "Bánh vẽ" },
-  { key: "bong-lan-trung-muoi", label: "Bông lan trứng muối" },
-  { key: "banh-hoa-qua", label: "Bánh hoa quả" },
-  { key: "banh-hoa", label: "Bánh hoa" },
-  { key: "banh-kem", label: "Bánh kem" },
-  { key: "khac", label: "Khác" },
-] as const;

@@ -1,20 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Photo } from "@/lib/photos";
+
+// ✅ Cache ảnh đã load để khi back về gallery không bị nháy
+const LOADED_SRC = new Set<string>();
 
 function StatusPill({ photo }: { photo: Photo }) {
   if (photo.classifyStatus === "queued" || photo.classifyStatus === "processing") {
-    return <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-zinc-900 shadow-sm ring-1 ring-black/10">classifying…</span>;
+    return (
+      <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-zinc-900 shadow-sm ring-1 ring-black/10">
+        classifying…
+      </span>
+    );
   }
   if (photo.classifyStatus === "failed") {
-    return <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-red-700 shadow-sm ring-1 ring-black/10">classify failed</span>;
+    return (
+      <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-red-700 shadow-sm ring-1 ring-black/10">
+        classify failed
+      </span>
+    );
   }
   if (photo.userCategory) {
-    return <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-emerald-700 shadow-sm ring-1 ring-black/10">manual</span>;
+    return (
+      <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-emerald-700 shadow-sm ring-1 ring-black/10">
+        manual
+      </span>
+    );
   }
-  return <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-zinc-900 shadow-sm ring-1 ring-black/10">ai {Math.round((photo.aiConfidence ?? 0) * 100)}%</span>;
+  return (
+    <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-zinc-900 shadow-sm ring-1 ring-black/10">
+      ai {Math.round((photo.aiConfidence ?? 0) * 100)}%
+    </span>
+  );
 }
 
 export function PhotoCard({
@@ -28,6 +49,8 @@ export function PhotoCard({
   isAdmin?: boolean;
   variant?: "grid" | "columns";
 }) {
+  const router = useRouter();
+
   const isColumns = variant === "columns";
   const w = photo.width && photo.width > 0 ? photo.width : 1200;
   const h = photo.height && photo.height > 0 ? photo.height : 1200;
@@ -35,19 +58,47 @@ export function PhotoCard({
   // Feed/grid dùng thumbnail để nhẹ mạng (fallback về ảnh lớn nếu thiếu)
   const imgSrc = photo.thumbSrc || photo.src;
 
+  // ✅ Chỉ blur cho columns (ít item hơn). Grid thì bỏ blur để nhẹ.
+  const enableBlur = isColumns && Boolean(photo.blurDataURL);
+
+  // ✅ Nếu ảnh đã từng load trước đó => loaded luôn => back không nháy
+  const [loaded, setLoaded] = useState(() => LOADED_SRC.has(imgSrc));
+
+  const handleLoaded = () => {
+    LOADED_SRC.add(imgSrc);
+    setLoaded(true);
+  };
+  
   return (
     <div
       className={
         "group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition hover:shadow-md hover:ring-black/10 " +
         (isColumns ? "w-full" : "h-full w-full")
       }
+      // Help the browser skip rendering offscreen cards for smoother scrolling.
+      style={isColumns ? undefined : ({ contentVisibility: "auto", containIntrinsicSize: "300px 400px" } as any)}
     >
-      {/* Link overlay */}
-      <Link href={href} className="absolute inset-0 z-10" aria-label={photo.title} />
+      {/* Link overlay + prefetch */}
+      <Link
+        href={href}
+        prefetch={false} 
+        className="absolute inset-0 z-10"
+        aria-label={photo.title}
+        onMouseEnter={() => router.prefetch(href)}
+        onTouchStart={() => router.prefetch(href)}
+      />
+      
 
       {/* Image */}
-      <div className={"relative w-full " + (isColumns ? "" : "h-full")}
-      >
+      <div className={"relative w-full " + (isColumns ? "" : "h-full")}>
+        {/* ✅ Skeleton nền, fade-out khi ảnh load */}
+        <div
+          className={[
+            "absolute inset-0 bg-gray-100 transition-opacity duration-300",
+            loaded ? "opacity-0" : "opacity-100 animate-pulse",
+          ].join(" ")}
+        />
+
         {isColumns ? (
           <Image
             src={imgSrc}
@@ -55,9 +106,15 @@ export function PhotoCard({
             width={w}
             height={h}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            placeholder="blur"
-            blurDataURL={photo.blurDataURL}
-            className="h-auto w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+            placeholder={enableBlur ? "blur" : "empty"}
+            blurDataURL={enableBlur ? photo.blurDataURL : undefined}
+            unoptimized
+            onLoad={handleLoaded}
+            className={[
+              "h-auto w-full object-cover transition duration-300 group-hover:scale-[1.02]",
+              "transition-opacity duration-300",
+              loaded ? "opacity-100" : "opacity-0",
+            ].join(" ")}
           />
         ) : (
           <Image
@@ -65,9 +122,15 @@ export function PhotoCard({
             alt={photo.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            placeholder="blur"
-            blurDataURL={photo.blurDataURL}
-            className="object-cover transition duration-300 group-hover:scale-[1.02]"
+            placeholder={enableBlur ? "blur" : "empty"}
+            blurDataURL={enableBlur ? photo.blurDataURL : undefined}
+            unoptimized
+            onLoad={handleLoaded}
+            className={[
+              "object-cover transition duration-300 group-hover:scale-[1.02]",
+              "transition-opacity duration-300",
+              loaded ? "opacity-100" : "opacity-0",
+            ].join(" ")}
           />
         )}
 

@@ -6,7 +6,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Photo } from "@/lib/photos";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Select } from "@/components/ui/select";
-import { CATEGORIES } from "@/lib/photos";
+import type { CategoryItem } from "@/lib/categories";
+import { useCategories } from "@/components/providers/categories-provider";
 
 function IconButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
   return (
@@ -35,7 +36,8 @@ export function Lightbox({
   onNext: () => void;
   onPhotoPatched: (patch: Partial<Photo>) => void;
 }) {
-  useEffect(() => {
+  const categories = useCategories();
+useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") onPrev();
@@ -99,7 +101,7 @@ export function Lightbox({
                   className="h-10"
                 >
                   <option value="">Auto (AI)</option>
-                  {CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.key} value={c.key}>
                       {c.label}
                     </option>
@@ -134,7 +136,7 @@ export function Lightbox({
                       fill
                       sizes="(max-width: 640px) 96vw, (max-width: 1280px) 92vw, 2000px"
                       quality={100}
-                      placeholder="blur"
+                      placeholder={photo.blurDataURL ? "blur" : "empty"}
                       blurDataURL={photo.blurDataURL}
                       className="object-contain"
                       priority

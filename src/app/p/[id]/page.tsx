@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { SiteHeader } from "@/components/layout/site-header";
 import { prisma } from "@/lib/prisma";
@@ -8,11 +8,12 @@ import { DEFAULT_BLUR } from "@/lib/photos";
 import { blurDataUrlFromKey } from "@/lib/blur";
 import { r2PublicUrl } from "@/lib/r2-url";
 import { isAdminServer } from "@/lib/admin-auth";
-import { CATEGORIES } from "@/lib/photos";
+import { getCategoryLabelMapServer } from "@/lib/categories.server";
+import { tagsToText } from "@/lib/tag-utils";
+import { BackButton } from "@/components/nav/back-button";
 
 import { CakeInfoClient } from "./cake-info-client";
-import { RelatedMasonryClient } from "./related-masonry";
-import { ArrowLeft } from "lucide-react";
+import { RelatedSection, RelatedSectionFallback } from "./related-section";
 
 export const runtime = "nodejs";
 
@@ -22,8 +23,7 @@ export default async function PinDetailPage({ params }: { params: Promise<{ id: 
   const photo = await prisma.photo.findUnique({
     where: { id },
     include: {
-      tags: { select: { name: true } },
-      job: { select: { status: true, lastError: true } },
+      tags: { where: { isActive: true }, select: { key: true, label: true } },
     },
   });
 
@@ -32,42 +32,15 @@ export default async function PinDetailPage({ params }: { params: Promise<{ id: 
   const isAdmin = await isAdminServer();
   if (isAdmin) redirect(`/admin/p/${id}`);
 
-  const relatedRaw = await prisma.photo.findMany({
-    where: {
-      id: { not: photo.id },
-      finalCategory: photo.finalCategory,
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: {
-      tags: { select: { name: true } },
-      job: { select: { status: true, lastError: true } },
-    },
-  });
+  // Guests must not see inactive products.
+  if (!photo.active) notFound();
 
-  const catLabel = CATEGORIES.find((c) => c.key === photo.finalCategory)?.label ?? photo.finalCategory;
-
-  const related = relatedRaw.map((p) => ({
-    id: p.id,
-    src: r2PublicUrl(p.displayKey),
-    thumbSrc: r2PublicUrl(p.thumbKey),
-    width: p.width,
-    height: p.height,
-    title: p.title,
-    tags: [],
-    blurDataURL: blurDataUrlFromKey(p.displayKey) ?? DEFAULT_BLUR,
-
-    // Public page: do not expose internal signals
-    aiCategory: null,
-    aiConfidence: 0,
-    userCategory: null,
-    finalCategory: p.finalCategory,
-    classifyStatus: null,
-    classifyError: null,
-  }));
+  const catMap = await getCategoryLabelMapServer({ activeOnly: true });
+  const catLabel = catMap.get(photo.finalCategory) ?? photo.finalCategory;
 
   return (
     <div className="grain min-h-screen">
-      <SiteHeader />
+      <SiteHeader initialIsAdmin={isAdmin} />
 
       <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Detail card */}
@@ -75,14 +48,9 @@ export default async function PinDetailPage({ params }: { params: Promise<{ id: 
           <div className="grid gap-6 p-6 md:grid-cols-[minmax(0,1fr)_420px]">
             {/* LEFT: image block (bo 4 góc) */}
             <div className="relative w-full overflow-hidden rounded-2xl bg-zinc-100 md:max-w-[780px] md:justify-self-center">
-                <Link
-                  href="/gallery"
-                className="absolute left-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-black/10 hover:bg-white"
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-5 w-5 text-zinc-900" />
-              </Link>
-
+                <div className="absolute left-4 top-4 z-20">
+                  <BackButton fallbackHref="/gallery" />
+                </div>
               <div className="relative w-full aspect-[4/5]">
                 <Image
                   src={
@@ -94,6 +62,7 @@ export default async function PinDetailPage({ params }: { params: Promise<{ id: 
                   alt={photo.title}
                   fill
                   priority
+                  unoptimized
                   placeholder="blur"
                   blurDataURL={blurDataUrlFromKey(photo.displayKey) ?? DEFAULT_BLUR}
                   className="object-contain"
@@ -120,25 +89,49 @@ export default async function PinDetailPage({ params }: { params: Promise<{ id: 
                   finalCategory: photo.finalCategory,
                   adminNote: "",
                   adminNotePublic: false,
+                  tagsText: tagsToText(photo.tags.map((t: any) => t.label ?? t.key)),
                 }}
               />
+
+              {/* Public info (customers can see) */}
+              <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="text-sm font-semibold text-zinc-900">Thông tin</div>
+
+                <div className="mt-3 space-y-3 text-sm text-zinc-800">
+                  {photo.priceVisibility === "public" && photo.priceBySize ? (
+                    <div>
+                      <div className="text-xs font-medium text-zinc-600">Giá (theo size)</div>
+                      <div className="mt-1 whitespace-pre-wrap">{photo.priceBySize}</div>
+                    </div>
+                  ) : null}
+
+                  {photo.descriptionVisibility === "public" && photo.description ? (
+                    <div>
+                      <div className="text-xs font-medium text-zinc-600">Mô tả</div>
+                      <div className="mt-1 whitespace-pre-wrap">{photo.description}</div>
+                    </div>
+                  ) : null}
+
+                  {photo.tags.length ? (
+                    <div>
+                      <div className="text-xs font-medium text-zinc-600">Tags</div>
+                      <div className="mt-1 text-zinc-800">{tagsToText(photo.tags.map((t: any) => t.label ?? t.key))}</div>
+                    </div>
+                  ) : null}
+
+                  {!photo.tags.length && !photo.priceBySize && !photo.description ? (
+                    <div className="text-zinc-500">Chưa có thông tin.</div>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Related */}
-        <section className="mt-8">
-          <div className="mb-3 flex items-end justify-between">
-            <div className="text-sm font-semibold text-zinc-900">Gợi ý cùng chủ đề</div>
-            <div className="text-xs text-zinc-500">{related.length} ảnh</div>
-          </div>
-
-          {related.length ? (
-            <RelatedMasonryClient photos={related} basePath="" />
-          ) : (
-            <div className="text-sm text-zinc-500">Chưa có ảnh liên quan.</div>
-          )}
-        </section>
+        {/* Related (streamed, non-blocking for first paint) */}
+        <Suspense fallback={<RelatedSectionFallback />}>
+          <RelatedSection photoId={photo.id} finalCategory={photo.finalCategory} activeOnly basePath="" />
+        </Suspense>
       </main>
     </div>
   );

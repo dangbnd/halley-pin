@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_BLUR, CATEGORIES } from "@/lib/photos";
+import { DEFAULT_BLUR } from "@/lib/photos";
 import { blurDataUrlFromKey } from "@/lib/blur";
 import { r2PublicUrl } from "@/lib/r2-url";
-import { normalizeTagName } from "@/lib/tags";
+import { keyToLabelFallback, slugifyTagKey } from "@/lib/tag-utils";
 import { isAdminServer } from "@/lib/admin-auth";
+import { getCategoriesServer } from "@/lib/categories.server";
 
 export const runtime = "nodejs";
 
@@ -23,14 +24,14 @@ function json(data: unknown, init?: ResponseInit, isAdmin?: boolean) {
   return res;
 }
 
-function buildSearchWhere(qRaw: string, isAdmin: boolean) {
+function buildSearchWhere(qRaw: string, isAdmin: boolean, categories: { key: string; label: string }[]) {
   const q = qRaw.trim();
   if (!q) return {};
 
   const qLower = q.toLowerCase();
-  const qAsTag = normalizeTagName(q);
+  const qAsTag = slugifyTagKey(q);
 
-  const matchedCategoryKeys = CATEGORIES.filter((c) => {
+  const matchedCategoryKeys = categories.filter((c) => {
     const k = c.key.toLowerCase();
     const lbl = c.label.toLowerCase();
     return k.includes(qLower) || lbl.includes(qLower) || (qAsTag && k.includes(qAsTag));
@@ -43,8 +44,8 @@ function buildSearchWhere(qRaw: string, isAdmin: boolean) {
     ...(isAdmin ? [{ userCategory: { contains: q } }] : []),
     ...(matchedCategoryKeys.length ? [{ finalCategory: { in: matchedCategoryKeys } }] : []),
     { finalCategory: { contains: q } },
-    { tags: { some: { name: { contains: q } } } },
-    ...(qAsTag ? [{ tags: { some: { name: { contains: qAsTag } } } }] : []),
+    { tags: { some: { label: { contains: q } } } },
+    ...(qAsTag ? [{ tags: { some: { key: { contains: qAsTag } } } }] : []),
   ];
 
   return { OR };
@@ -57,19 +58,22 @@ export async function GET(req: Request) {
 
   const isAdmin = await isAdminServer();
 
+  // Fetch dynamic categories (admin-editable). Guests only need active categories; admin can search across all.
+  const categoriesAll = await getCategoriesServer({ activeOnly: !isAdmin });
+
   // If query is empty, keep it cheap.
   if (!q) {
     return json({ q: "", photos: [], categories: [], tags: [], hasMorePhotos: false }, undefined, isAdmin);
   }
 
-  const where = buildSearchWhere(q, isAdmin);
+  const where = buildSearchWhere(q, isAdmin, categoriesAll);
 
   const [photosRaw, grouped] = await Promise.all([
     prisma.photo.findMany({
       where,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
-      include: { tags: { select: { name: true } } },
+      include: { tags: { select: { key: true, label: true } } },
     }),
     prisma.photo.groupBy({
       by: ["finalCategory"],
@@ -82,23 +86,26 @@ export async function GET(req: Request) {
   const photos = hasMorePhotos ? photosRaw.slice(0, limit) : photosRaw;
 
   // lightweight tag facet from the returned photos
-  const tagCount = new Map<string, number>();
+  const tagCount = new Map<string, { label: string; count: number }>();
   for (const p of photos) {
     for (const t of p.tags ?? []) {
-      const name = t.name;
-      tagCount.set(name, (tagCount.get(name) ?? 0) + 1);
+      const key = String((t as any).key ?? "");
+      if (!key) continue;
+      const label = (t as any).label || keyToLabelFallback(key);
+      const cur = tagCount.get(key);
+      tagCount.set(key, { label, count: (cur?.count ?? 0) + 1 });
     }
   }
   const tags = !isAdmin
     ? []
     : Array.from(tagCount.entries())
-        .map(([name, count]) => ({ name, count }))
+        .map(([key, v]) => ({ key, label: v.label, count: v.count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 12);
 
   // NOTE: Prisma groupBy returns `finalCategory` as `string | null` at the type level.
   // Keep this map as <string, string> so we can safely look up labels.
-  const catLabel = new Map<string, string>(CATEGORIES.map((c) => [c.key, c.label]));
+  const catLabel = new Map<string, string>(categoriesAll.map((c) => [c.key, c.label]));
   const categories = !isAdmin
     ? []
     : grouped
@@ -125,7 +132,7 @@ export async function GET(req: Request) {
       thumbSrc: r2PublicUrl(p.thumbKey),
       blurDataURL: blurDataUrlFromKey(p.displayKey) ?? DEFAULT_BLUR,
       finalCategory: p.finalCategory,
-      tags: isAdmin ? p.tags.map((t) => t.name).slice(0, 6) : [],
+      tags: isAdmin ? p.tags.map((t: any) => t.label || keyToLabelFallback(t.key)).slice(0, 6) : [],
     })),
     categories: outCategories,
     tags: outTags,
