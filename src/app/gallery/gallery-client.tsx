@@ -110,6 +110,11 @@ export function GalleryClient({
     GALLERY_CACHE?.key === cacheKey ? GALLERY_CACHE.items : (initialItems ?? [])
   );
 
+  useEffect(() => {
+    // Prefetch vài item đầu (đang nằm trong màn hình) để click gần như instant
+    items.slice(0, 12).forEach((p) => router.prefetch(`/photos/${p.id}`));
+  }, [items, router]);
+
   const [cursor, setCursor] = useState<string | null>(() =>
     GALLERY_CACHE?.key === cacheKey ? GALLERY_CACHE.cursor : (initialCursor ?? null)
   );

@@ -68,6 +68,12 @@ export function PhotoCard({
     LOADED_SRC.add(imgSrc);
     setLoaded(true);
   };
+  const preloadFull = () => {
+  const src = photo.src; // ảnh full dùng ở detail
+    if (!src) return;
+    const img = new window.Image();
+    img.src = src;
+  };
   
   return (
     <div
@@ -81,11 +87,13 @@ export function PhotoCard({
       {/* Link overlay + prefetch */}
       <Link
         href={href}
-        prefetch={false} 
+        //prefetch={false} 
         className="absolute inset-0 z-10"
         aria-label={photo.title}
-        onMouseEnter={() => router.prefetch(href)}
-        onTouchStart={() => router.prefetch(href)}
+        //onMouseEnter={() => router.prefetch(href)}
+        //onTouchStart={() => router.prefetch(href)}
+        onPointerDown={preloadFull}
+        onTouchStart={preloadFull}
       />
       
 
@@ -135,10 +143,10 @@ export function PhotoCard({
         )}
 
         {/* Overlay gradient */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 transition-opacity duration-200 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />
 
         {/* Title + category (chỉ hiện khi hover/focus) */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 p-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 p-4 opacity-0 transition-opacity duration-200 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
           <div className="truncate text-sm font-semibold text-white drop-shadow-sm">{photo.title}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-zinc-900 shadow-sm ring-1 ring-black/10">

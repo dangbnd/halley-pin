@@ -5,3 +5,24 @@ Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
 [00:00:30.286] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109516253_cf9f9e73-7c1d-4349-b07e-a6f55448d869_hq-156-/thumb.webp" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
 Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
 [00:06:05.875] Server  LOG     prisma:error "Error in PostgreSQL connection: Error { kind: Closed, cause: None }"
+[01:11:26.284] Server  LOG     prisma:error "Error in PostgreSQL connection: Error { kind: Closed, cause: None }"
+[04:13:24.574] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[04:13:25.527] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109516253_cf9f9e73-7c1d-4349-b07e-a6f55448d869_hq-156-/thumb.webp" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[04:20:13.671] Server  LOG     prisma:error "Error in PostgreSQL connection: Error { kind: Closed, cause: None }"
+[05:01:56.453] Server  LOG     ✓ Compiled in 447ms
+[05:02:10.751] Server  LOG     ✓ Compiled in 201ms
+[05:21:24.987] Server  LOG     ✓ Compiled in 355ms
+[05:22:08.153] Server  LOG     ✓ Compiled in 191ms
+[05:22:22.585] Server  LOG     ✓ Compiled in 165ms
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109201021_97d288c6-b51d-4652-9ee8-1f0c4ca0a6a1_hq-144-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109197646_76a08c27-9d45-4e45-a2a5-8405c5d18694_hq-143-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109193827_07fb017f-da25-49c0-88ac-56cb4952e463_hq-142-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109190187_fe54335b-d445-463c-ad04-1840c174a769_hq-141-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109186771_4b3e9a8e-20de-4398-8712-b25211b2e968_hq-140-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109183335_3b321b3f-0631-4f9e-a7a6-4e2eb95ddabf_hq-139-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109179967_fcedc5a6-670c-4aba-80bd-df336a7509da_hq-138-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109176419_03bc1a92-bc24-4853-a07f-7dbea1edd433_hq-137-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109173398_45d93c5f-90a2-4369-9c93-fe8642071747_hq-136-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109170121_9ff79a4a-06c4-4bc1-964e-c3f379f0b5e1_hq-135-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
+[05:22:30.091] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109166628_fdca8409-5897-4d87-ab9d-c36aa6721134_hq-134-/thumb.webp" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.
