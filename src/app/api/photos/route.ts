@@ -124,33 +124,31 @@ export async function GET(req: Request) {
 
   // Keep public list as light as possible for speed.
   // Admin list needs tags/job/status for management UI.
-  const rows = await prisma.photo.findMany(
-    isAdmin
-      ? {
-          where,
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take: limit + 1,
-          include: {
-            tags: { select: { key: true, label: true } },
-            job: { select: { status: true, lastError: true } },
-          },
-        }
-      : {
-          where,
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take: limit + 1,
-          select: {
-            id: true,
-            createdAt: true,
-            displayKey: true,
-            thumbKey: true,
-            width: true,
-            height: true,
-            title: true,
-            finalCategory: true,
-          },
-        }
-  );
+  const rows = isAdmin 
+    ? await prisma.photo.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      include: {
+        tags: { select: { key: true, label: true } },
+        job: { select: { status: true, lastError: true } },
+      },
+    })
+  : await prisma.photo.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      select: {
+        id: true,
+        createdAt: true,
+        displayKey: true,
+        thumbKey: true,
+        width: true,
+        height: true,
+        title: true,
+        finalCategory: true,
+      },
+    });
 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;

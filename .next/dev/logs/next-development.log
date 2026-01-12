@@ -4,3 +4,4 @@
 Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
 [00:00:30.286] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109516253_cf9f9e73-7c1d-4349-b07e-a6f55448d869_hq-156-/thumb.webp" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
 Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[00:06:05.875] Server  LOG     prisma:error "Error in PostgreSQL connection: Error { kind: Closed, cause: None }"
