@@ -1,1 +1,6 @@
-{}
+{
+  "/api/photos/route": "app/api/photos/route.js",
+  "/gallery/page": "app/gallery/page.js",
+  "/p/[id]/page": "app/p/[id]/page.js",
+  "/page": "app/page.js"
+}

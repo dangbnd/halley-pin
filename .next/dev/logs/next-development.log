@@ -1,1 +1,6 @@
-[00:00:01.845] Server  LOG     ✓ Ready in 1297ms
+[00:00:01.813] Server  LOG     ✓ Ready in 1395ms
+[00:00:29.415] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:29.974] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109527475_8a4aa492-e236-4bd0-88ad-dc93148d1834_hq-159-/thumb.webp" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[00:00:30.286] Browser WARN    Image with src "https://images.halley.io.vn/photos/2026-01/1768109516253_cf9f9e73-7c1d-4349-b07e-a6f55448d869_hq-156-/thumb.webp" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
